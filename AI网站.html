@@ -1,0 +1,2787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralVerse - 人工智能前沿</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00f5ff;
+            --secondary: #8b5cf6;
+            --accent: #f72585;
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(15, 15, 25, 0.8);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-dark);
+            color: #fff;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* 自定义光标 - 简约风格 */
+        .cursor {
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s, background 0.2s;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .cursor-dot {
+            display: none;
+        }
+
+        .cursor-follower {
+            width: 36px;
+            height: 36px;
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s ease-out, height 0.3s ease-out, border-color 0.3s, opacity 0.3s;
+        }
+
+        .cursor.hover {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 245, 255, 0.15);
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+        }
+
+        .cursor-follower.hover {
+            width: 70px;
+            height: 70px;
+            border-color: var(--primary);
+            opacity: 0.5;
+        }
+
+        /* 加载动画 */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        .loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loader-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: gradientShift 2s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .loader-bar {
+            width: 200px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+
+        .loader-progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            animation: loadProgress 2s ease-out forwards;
+        }
+
+        @keyframes loadProgress {
+            to { width: 100%; }
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* 鼠标光效 - 更微妙 */
+        .mouse-glow {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.06) 0%, rgba(139, 92, 246, 0.03) 40%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            transform: translate(-50%, -50%);
+            opacity: 0.7;
+            filter: blur(30px);
+        }
+
+        /* 导航栏 */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            background: rgba(10, 10, 15, 0.6);
+            border-bottom: 1px solid rgba(0, 245, 255, 0.1);
+            transition: all 0.4s;
+        }
+
+        nav.scrolled {
+            padding: 15px 50px;
+            background: rgba(10, 10, 15, 0.9);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transform-origin: right;
+            transition: transform 0.4s;
+        }
+
+        .logo:hover::after {
+            transform: scaleX(1);
+            transform-origin: left;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.95rem;
+            position: relative;
+            padding: 10px 0;
+            overflow: hidden;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transition: all 0.3s;
+            transform: translateX(-50%);
+        }
+
+        .nav-links a::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--primary);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        /* 英雄区 */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        .hero-content {
+            z-index: 10;
+        }
+
+        .hero h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards 0.5s;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: gradientText 3s ease infinite;
+        }
+
+        @keyframes gradientText {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 600px;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards 0.7s;
+            line-height: 1.8;
+        }
+
+        .cta-btn {
+            padding: 18px 55px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            cursor: none;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards 0.9s;
+            transition: transform 0.3s, box-shadow 0.3s;
+            z-index: 1;
+        }
+
+        .cta-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+            z-index: -1;
+        }
+
+        .cta-btn:hover::before {
+            left: 100%;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(0, 245, 255, 0.4);
+        }
+
+        .cta-btn:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        /* 按钮粒子效果 */
+        .btn-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .btn-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        /* 滚动提示 */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards 1.2s;
+        }
+
+        .scroll-mouse {
+            width: 30px;
+            height: 50px;
+            border: 2px solid rgba(0, 245, 255, 0.5);
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .scroll-wheel {
+            width: 4px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 2px;
+            position: absolute;
+            left: 50%;
+            top: 10px;
+            transform: translateX(-50%);
+            animation: scrollWheel 1.5s ease-in-out infinite;
+        }
+
+        @keyframes scrollWheel {
+            0%, 100% { opacity: 1; top: 10px; }
+            50% { opacity: 0.3; top: 25px; }
+        }
+
+        /* 内容区域 */
+        .content-section {
+            padding: 120px 50px;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.8rem;
+            text-align: center;
+            margin-bottom: 80px;
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .section-title .title-text {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+        }
+
+        .section-title::before,
+        .section-title::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 100px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary));
+        }
+
+        .section-title::before {
+            right: calc(50% + 150px);
+            background: linear-gradient(90deg, transparent, var(--primary));
+        }
+
+        .section-title::after {
+            left: calc(50% + 150px);
+            background: linear-gradient(90deg, var(--primary), transparent);
+        }
+
+        /* 卡片网格 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            perspective: 1000px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.9), rgba(20, 20, 40, 0.9));
+            border: 1px solid rgba(0, 245, 255, 0.15);
+            border-radius: 25px;
+            padding: 45px;
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+            cursor: none;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(0,245,255,0.1), rgba(139,92,246,0.05));
+            opacity: 0;
+            transition: opacity 0.5s;
+            border-radius: 25px;
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, var(--primary), transparent, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.5s;
+            animation: rotate 4s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotate {
+            to { transform: rotate(360deg); }
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover::after {
+            opacity: 0.1;
+        }
+
+        .card:hover {
+            transform: translateY(-20px) rotateX(5deg);
+            border-color: var(--primary);
+            box-shadow:
+                0 30px 80px rgba(0, 245, 255, 0.2),
+                0 0 0 1px rgba(0, 245, 255, 0.1),
+                inset 0 0 30px rgba(0, 245, 255, 0.05);
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-icon {
+            font-size: 3.5rem;
+            margin-bottom: 25px;
+            display: inline-block;
+            transition: transform 0.5s;
+            filter: drop-shadow(0 0 20px rgba(0, 245, 255, 0.5));
+        }
+
+        .card:hover .card-icon {
+            transform: scale(1.2) rotateZ(10deg);
+        }
+
+        .card h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 18px;
+            color: var(--primary);
+            transition: all 0.3s;
+        }
+
+        .card:hover h3 {
+            text-shadow: 0 0 30px var(--primary);
+        }
+
+        .card p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+            transition: color 0.3s;
+        }
+
+        .card:hover p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .card-hint {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.3);
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .card-hint::after {
+            content: '→';
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+
+        .card:hover .card-hint {
+            color: var(--primary);
+        }
+
+        .card:hover .card-hint::after {
+            transform: translateX(8px);
+        }
+
+        /* 卡片光效跟随 */
+        .card-glow {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            transform: translate(-50%, -50%);
+        }
+
+        .card:hover .card-glow {
+            opacity: 1;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 50px;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.98), rgba(20, 20, 40, 0.98));
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            border-radius: 30px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            transform: scale(0.8) translateY(50px);
+            transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 45px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--secondary));
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.2rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .modal-title-icon {
+            font-size: 3rem;
+            filter: drop-shadow(0 0 20px rgba(0, 245, 255, 0.5));
+        }
+
+        .modal-close {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.03);
+            color: #fff;
+            font-size: 1.8rem;
+            cursor: none;
+            transition: all 0.4s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(247, 37, 133, 0.3);
+            border-color: var(--accent);
+            transform: rotate(90deg) scale(1.1);
+            box-shadow: 0 0 30px rgba(247, 37, 133, 0.4);
+        }
+
+        .modal-body {
+            padding: 45px;
+        }
+
+        .modal-section {
+            margin-bottom: 35px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: modalFadeIn 0.5s ease forwards;
+        }
+
+        .modal-section:nth-child(1) { animation-delay: 0.1s; }
+        .modal-section:nth-child(2) { animation-delay: 0.2s; }
+        .modal-section:nth-child(3) { animation-delay: 0.3s; }
+        .modal-section:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes modalFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-section h4 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--secondary);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-section p {
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.9;
+            font-size: 1.05rem;
+        }
+
+        .modal-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .modal-section ul li {
+            padding: 14px 0;
+            padding-left: 35px;
+            position: relative;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.7;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s;
+        }
+
+        .modal-section ul li:hover {
+            padding-left: 45px;
+            color: #fff;
+        }
+
+        .modal-section ul li::before {
+            content: '▹';
+            position: absolute;
+            left: 5px;
+            color: var(--primary);
+            font-size: 1.3rem;
+            transition: transform 0.3s;
+        }
+
+        .modal-section ul li:hover::before {
+            transform: translateX(5px);
+        }
+
+        .modal-tag {
+            display: inline-block;
+            padding: 8px 18px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 25px;
+            font-size: 0.9rem;
+            color: var(--secondary);
+            margin: 6px;
+            transition: all 0.3s;
+            cursor: none;
+        }
+
+        .modal-tag:hover {
+            background: rgba(139, 92, 246, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+        }
+
+        .modal-example {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 4px solid var(--primary);
+            padding: 25px;
+            border-radius: 0 15px 15px 0;
+            margin-top: 20px;
+        }
+
+        .modal-example p {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .modal-example code {
+            color: var(--primary);
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(var(--primary), var(--accent));
+            border-radius: 4px;
+        }
+
+        /* 统计数据 */
+        .stats-section {
+            padding: 100px 50px;
+            background: linear-gradient(180deg, transparent, rgba(0, 245, 255, 0.03), transparent);
+            position: relative;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 50px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 40px 30px;
+            background: rgba(15, 15, 25, 0.5);
+            border: 1px solid rgba(0, 245, 255, 0.1);
+            border-radius: 20px;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .stat-item:hover::before {
+            left: 100%;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-15px);
+            border-color: var(--primary);
+            box-shadow: 0 25px 60px rgba(0, 245, 255, 0.15);
+        }
+
+        .stat-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+        }
+
+        /* API设置区 */
+        .api-settings {
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.9), rgba(20, 20, 40, 0.9));
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            border-radius: 25px;
+            padding: 40px;
+            margin: 100px auto 40px;
+            max-width: 950px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .api-settings::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+        }
+
+        .api-settings h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .api-input-group {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .api-input {
+            flex: 1;
+            padding: 18px 28px;
+            border: 2px solid rgba(0, 245, 255, 0.2);
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.4s;
+        }
+
+        .api-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.15);
+        }
+
+        .api-save-btn {
+            padding: 18px 35px;
+            border: none;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: none;
+            transition: all 0.4s;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .api-save-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .api-save-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .api-save-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 245, 255, 0.3);
+        }
+
+        .api-status {
+            margin-top: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            display: none;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .api-status.success {
+            display: block;
+            background: rgba(74, 222, 128, 0.15);
+            border: 1px solid rgba(74, 222, 128, 0.4);
+            color: #4ade80;
+        }
+
+        .api-status.error {
+            display: block;
+            background: rgba(247, 37, 133, 0.15);
+            border: 1px solid rgba(247, 37, 133, 0.4);
+            color: #f72585;
+        }
+
+        .api-help {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(139, 92, 246, 0.08);
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.7;
+        }
+
+        .api-help a {
+            color: var(--secondary);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-bottom: 1px solid transparent;
+        }
+
+        .api-help a:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* AI对话区 */
+        .chat-section {
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.95), rgba(20, 20, 40, 0.95));
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            border-radius: 35px;
+            padding: 55px;
+            margin: 40px auto 120px;
+            max-width: 950px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+        }
+
+        .chat-container {
+            height: 420px;
+            overflow-y: auto;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .chat-message {
+            margin-bottom: 22px;
+            display: flex;
+            gap: 16px;
+            animation: messageSlideIn 0.4s ease;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .chat-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+        }
+
+        .chat-avatar:hover {
+            transform: scale(1.15);
+        }
+
+        .chat-message.ai .chat-avatar {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 8px 25px rgba(0, 245, 255, 0.3);
+        }
+
+        .chat-message.user .chat-avatar {
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            box-shadow: 0 8px 25px rgba(247, 37, 133, 0.3);
+        }
+
+        .chat-bubble {
+            max-width: 72%;
+            padding: 18px 24px;
+            border-radius: 22px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            position: relative;
+            transition: transform 0.3s;
+        }
+
+        .chat-bubble:hover {
+            transform: translateY(-2px);
+        }
+
+        .chat-message.ai .chat-bubble {
+            background: rgba(0, 245, 255, 0.08);
+            border: 1px solid rgba(0, 245, 255, 0.2);
+        }
+
+        .chat-message.user .chat-bubble {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 18px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 18px 30px;
+            border: 2px solid rgba(0, 245, 255, 0.2);
+            border-radius: 55px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-size: 1.05rem;
+            outline: none;
+            transition: all 0.4s;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.15);
+        }
+
+        .send-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: none;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .send-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .send-btn:hover::before {
+            width: 150px;
+            height: 150px;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.15) rotate(15deg);
+            box-shadow: 0 10px 40px rgba(0, 245, 255, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 打字动画 */
+        .typing-indicator {
+            display: flex;
+            gap: 6px;
+            padding: 12px;
+        }
+
+        .typing-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-12px); opacity: 1; }
+        }
+
+        /* AI图片生成区 */
+        .image-gen-section {
+            padding: 120px 50px;
+            text-align: center;
+        }
+
+        .image-gen-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.95), rgba(20, 20, 40, 0.95));
+            border: 1px solid rgba(247, 37, 133, 0.25);
+            border-radius: 35px;
+            padding: 55px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-gen-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--secondary));
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 22px 35px;
+            border: 2px solid rgba(247, 37, 133, 0.2);
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-size: 1.15rem;
+            margin-bottom: 25px;
+            outline: none;
+            transition: all 0.4s;
+        }
+
+        .prompt-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 30px rgba(247, 37, 133, 0.15);
+        }
+
+        .generate-btn {
+            padding: 18px 70px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 55px;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            color: #fff;
+            cursor: none;
+            transition: all 0.4s;
+            margin-bottom: 35px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .generate-btn:hover::before {
+            width: 400px;
+            height: 400px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(247, 37, 133, 0.35);
+        }
+
+        .image-preview {
+            width: 100%;
+            min-height: 420px;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-preview canvas {
+            max-width: 100%;
+            border-radius: 18px;
+        }
+
+        .preview-text {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 1.15rem;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 70px;
+            height: 70px;
+            border: 4px solid rgba(247, 37, 133, 0.15);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 页脚 */
+        footer {
+            padding: 80px 50px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+
+        .footer-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 25px;
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        .footer-logo:hover {
+            transform: scale(1.1);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 45px;
+            margin-bottom: 35px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.55);
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            padding-bottom: 5px;
+        }
+
+        .footer-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-links a:hover::after {
+            width: 100%;
+        }
+
+        .copyright {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 0.95rem;
+        }
+
+        /* 社交链接 */
+        .footer-social {
+            margin-bottom: 30px;
+        }
+
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: #fff;
+            text-decoration: none;
+            transition: all 0.4s;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .social-link:hover {
+            border-color: var(--primary);
+            background: rgba(0, 245, 255, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 245, 255, 0.2);
+        }
+
+        /* 输入框动画效果 */
+        .chat-input, .api-input, .prompt-input {
+            position: relative;
+        }
+
+        .chat-input::placeholder, .api-input::placeholder, .prompt-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+            transition: color 0.3s;
+        }
+
+        .chat-input:focus::placeholder, .api-input:focus::placeholder, .prompt-input:focus::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* 统计数字动画 */
+        .stat-item {
+            cursor: default;
+        }
+
+        .stat-item:hover .stat-number {
+            animation: numberPulse 0.5s ease;
+        }
+
+        @keyframes numberPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* 模态框底部关闭提示 */
+        .modal-footer {
+            padding: 20px 45px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+        }
+
+        /* 按钮点击波纹效果 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: rippleEffect 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes rippleEffect {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* 页面滚动进度条 */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--secondary));
+            z-index: 10001;
+            transition: width 0.1s;
+        }
+
+        /* 返回顶部按钮 */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            border: none;
+            cursor: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.4s;
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 15px 40px rgba(0, 245, 255, 0.3);
+        }
+
+        /* 提示框样式 */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10000;
+            white-space: nowrap;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 25px; }
+            nav { padding: 15px 20px; }
+            .nav-links { display: none; }
+            .content-section, .chat-section, .image-gen-container { padding: 30px; }
+            .api-input-group { flex-direction: column; }
+            body { cursor: auto; }
+            .cursor, .cursor-dot, .cursor-follower { display: none; }
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(var(--primary), var(--accent));
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(var(--accent), var(--secondary));
+        }
+
+        /* 动画类 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 文字动画 */
+        .text-reveal {
+            overflow: hidden;
+        }
+
+        .text-reveal span {
+            display: inline-block;
+            animation: textReveal 0.8s ease forwards;
+            opacity: 0;
+            transform: translateY(100%);
+        }
+
+        @keyframes textReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 漂浮动画 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- 自定义光标 -->
+    <div class="cursor" id="cursor"></div>
+    <div class="cursor-dot" id="cursorDot"></div>
+    <div class="cursor-follower" id="cursorFollower"></div>
+
+    <!-- 鼠标光效 -->
+    <div class="mouse-glow" id="mouseGlow"></div>
+
+    <!-- 滚动进度条 -->
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <!-- 返回顶部按钮 -->
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <!-- 加载动画 -->
+    <div class="loader" id="loader">
+        <div class="loader-text">NeuralVerse</div>
+        <div class="loader-bar">
+            <div class="loader-progress"></div>
+        </div>
+    </div>
+
+    <!-- 3D背景 -->
+    <div id="canvas-container"></div>
+
+    <!-- 导航栏 -->
+    <nav id="navbar">
+        <div class="logo">NeuralVerse</div>
+        <div class="nav-links">
+            <a href="#home" data-text="首页">首页</a>
+            <a href="#about" data-text="关于AI">关于AI</a>
+            <a href="#features" data-text="应用场景">应用场景</a>
+            <a href="#chat" data-text="AI对话">AI对话</a>
+            <a href="#generate" data-text="AI生成">AI生成</a>
+        </div>
+    </nav>
+
+    <!-- 英雄区 -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1>
+                <span class="gradient-text">探索人工智能</span><br>
+                <span class="gradient-text">的无限可能</span>
+            </h1>
+            <p>踏入未来的世界，体验最前沿的AI技术。从自然语言处理到计算机视觉，从生成式AI到智能决策，一起见证科技的奇迹。</p>
+            <button class="cta-btn" onclick="scrollToSection('about')">
+                开始探索
+                <div class="btn-particles"></div>
+            </button>
+        </div>
+        <div class="scroll-indicator">
+            <div class="scroll-mouse">
+                <div class="scroll-wheel"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 关于AI -->
+    <section class="content-section fade-in" id="about">
+        <h2 class="section-title">
+            <span class="title-text">什么是人工智能</span>
+        </h2>
+        <div class="card-grid">
+            <div class="card" onclick="openModal('ml')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🧠</div>
+                    <h3>机器学习</h3>
+                    <p>通过数据驱动的方式，让计算机自动学习和改进。从海量数据中发现规律，做出预测和决策。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('nlp')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">💬</div>
+                    <h3>自然语言处理</h3>
+                    <p>让机器理解和生成人类语言。从智能客服到AI写作，NLP正在改变我们与技术交互的方式。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('cv')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">👁️</div>
+                    <h3>计算机视觉</h3>
+                    <p>赋予机器"看"的能力。从人脸识别到自动驾驶，CV让机器理解视觉世界。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+        <div class="modal-content" id="modalContent">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">
+                    <span class="modal-title-icon" id="modalIcon"></span>
+                    <span id="modalTitleText"></span>
+                </div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- 应用场景 -->
+    <section class="content-section fade-in" id="features">
+        <h2 class="section-title">
+            <span class="title-text">AI应用场景</span>
+        </h2>
+        <div class="card-grid">
+            <div class="card" onclick="openModal('medical')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🏥</div>
+                    <h3>医疗健康</h3>
+                    <p>AI辅助诊断、药物研发、个性化治疗方案，让医疗更精准、更高效。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('auto')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🚗</div>
+                    <h3>自动驾驶</h3>
+                    <p>从L2到L5，AI正在重新定义出行方式，让驾驶更安全、更智能。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('creative')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🎨</div>
+                    <h3>创意生成</h3>
+                    <p>AI绘画、AI音乐、AI视频，释放人类创造力，开启艺术新纪元。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('manufacture')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">💼</div>
+                    <h3>智能制造</h3>
+                    <p>智能质检、预测性维护、供应链优化，AI让制造更智能、更高效。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('education')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🎓</div>
+                    <h3>智慧教育</h3>
+                    <p>个性化学习路径、智能辅导、自动化评估，让教育更公平、更有效。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+            <div class="card" onclick="openModal('security')">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">🔐</div>
+                    <h3>网络安全</h3>
+                    <p>AI驱动的威胁检测、智能防御系统，守护数字世界的安全。</p>
+                    <div class="card-hint">点击查看详情</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 统计数据 -->
+    <section class="stats-section fade-in">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-number" data-target="2000">0</span>
+                <span class="stat-label">AI企业数量（万）</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" data-target="5000">0</span>
+                <span class="stat-label">市场规模（亿美元）</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" data-target="97">0</span>
+                <span class="stat-label">准确率（%）</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" data-target="10">0</span>
+                <span class="stat-label">全球投资（千亿美元）</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- API设置区 -->
+    <div class="api-settings fade-in" id="apiSettings">
+        <h3>⚙️ DeepSeek API 设置</h3>
+        <div class="api-input-group">
+            <input type="password" class="api-input" id="apiKeyInput" placeholder="输入你的 DeepSeek API Key..." value="">
+            <button class="api-save-btn" onclick="saveApiKey()">保存密钥</button>
+        </div>
+        <div class="api-status" id="apiStatus"></div>
+        <div class="api-help">
+            <strong>如何获取 API Key：</strong><br>
+            1. 访问 <a href="https://platform.deepseek.com/" target="_blank">DeepSeek 开放平台</a><br>
+            2. 注册并登录账号<br>
+            3. 在「API Keys」页面创建新的密钥<br>
+            4. 新用户赠送 <strong>500万 tokens 免费额度</strong>！<br>
+            5. 将密钥粘贴到上方输入框，点击保存
+        </div>
+    </div>
+
+    <!-- AI对话区 -->
+    <section class="chat-section fade-in" id="chat">
+        <h2 class="section-title">
+            <span class="title-text">与 AI 对话</span>
+        </h2>
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-message ai">
+                <div class="chat-avatar">🤖</div>
+                <div class="chat-bubble">你好！我是 NeuralVerse AI 助手，由 DeepSeek 大模型驱动。请先在上方设置你的 API Key，然后就可以和我自由对话了！</div>
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" class="chat-input" id="chatInput" placeholder="输入你的问题..." onkeypress="handleKeyPress(event)" disabled>
+            <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>➤</button>
+        </div>
+    </section>
+
+    <!-- AI图片生成 -->
+    <section class="image-gen-section fade-in" id="generate">
+        <h2 class="section-title">
+            <span class="title-text">AI 图像生成</span>
+        </h2>
+        <div class="image-gen-container">
+            <input type="text" class="prompt-input" id="promptInput" placeholder="描述你想要生成的图像，例如：赛博朋克风格的城市夜景...">
+            <button class="generate-btn" onclick="generateImage()">生成图像</button>
+            <div class="image-preview" id="imagePreview">
+                <div class="loading-spinner" id="loadingSpinner"></div>
+                <p class="preview-text" id="previewText">输入提示词，点击生成</p>
+                <canvas id="generatedCanvas" style="display: none;"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer>
+        <div class="footer-logo floating">NeuralVerse</div>
+        <div class="footer-links">
+            <a href="#home">关于我们</a>
+            <a href="https://github.com/Yangliu6217" target="_blank">技术博客</a>
+            <a href="https://github.com/Yangliu6217?tab=repositories" target="_blank">开源项目</a>
+            <a href="#chat">联系方式</a>
+        </div>
+        <div class="footer-social">
+            <a href="https://github.com/Yangliu6217" target="_blank" class="social-link">
+                <span class="social-icon">GitHub</span>
+            </a>
+        </div>
+        <p class="copyright">© 2024 NeuralVerse. 探索人工智能的无限可能。</p>
+    </footer>
+
+    <script>
+        // ==================== 加载动画 ====================
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 2200);
+        });
+
+        // ==================== 自定义光标 ====================
+        const cursor = document.getElementById('cursor');
+        const cursorFollower = document.getElementById('cursorFollower');
+        const mouseGlow = document.getElementById('mouseGlow');
+
+        let mouseX = 0, mouseY = 0;
+        let followerX = 0, followerY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            mouseGlow.style.left = mouseX + 'px';
+            mouseGlow.style.top = mouseY + 'px';
+        });
+
+        function animateCursor() {
+            // 主光标直接跟随
+            cursor.style.left = mouseX + 'px';
+            cursor.style.top = mouseY + 'px';
+
+            // 跟随圈平滑跟随
+            followerX += (mouseX - followerX) * 0.12;
+            followerY += (mouseY - followerY) * 0.12;
+            cursorFollower.style.left = followerX + 'px';
+            cursorFollower.style.top = followerY + 'px';
+
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        // 光标悬停效果
+        const hoverElements = document.querySelectorAll('a, button, .card, .modal-tag, .stat-item, input');
+        hoverElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                cursor.classList.add('hover');
+                cursorFollower.classList.add('hover');
+            });
+            el.addEventListener('mouseleave', () => {
+                cursor.classList.remove('hover');
+                cursorFollower.classList.remove('hover');
+            });
+        });
+
+        // 鼠标按下效果
+        document.addEventListener('mousedown', () => {
+            cursor.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        });
+
+        document.addEventListener('mouseup', () => {
+            cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+        });
+
+        // ==================== Three.js 3D粒子背景 ====================
+        let scene, camera, renderer, particles;
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const geometry = new THREE.BufferGeometry();
+            const count = 6000;
+            const positions = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 120;
+                positions[i + 1] = (Math.random() - 0.5) * 120;
+                positions[i + 2] = (Math.random() - 0.5) * 120;
+
+                const colorChoice = Math.random();
+                if (colorChoice < 0.33) {
+                    colors[i] = 0; colors[i + 1] = 0.96; colors[i + 2] = 1;
+                } else if (colorChoice < 0.66) {
+                    colors[i] = 0.55; colors[i + 1] = 0.36; colors[i + 2] = 0.96;
+                } else {
+                    colors[i] = 0.97; colors[i + 1] = 0.15; colors[i + 2] = 0.52;
+                }
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.12,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 55;
+
+            const lineGeometry = new THREE.BufferGeometry();
+            const linePositions = [];
+            for (let i = 0; i < 150; i++) {
+                const idx1 = Math.floor(Math.random() * count) * 3;
+                const idx2 = Math.floor(Math.random() * count) * 3;
+                linePositions.push(positions[idx1], positions[idx1 + 1], positions[idx1 + 2]);
+                linePositions.push(positions[idx2], positions[idx2 + 1], positions[idx2 + 2]);
+            }
+            lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.12 });
+            const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+            scene.add(lines);
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.x += 0.0004;
+            particles.rotation.y += 0.0006;
+
+            // 鼠标交互
+            const targetRotationX = (mouseY - window.innerHeight / 2) * 0.0001;
+            const targetRotationY = (mouseX - window.innerWidth / 2) * 0.0001;
+            particles.rotation.x += (targetRotationX - particles.rotation.x) * 0.02;
+            particles.rotation.y += (targetRotationY - particles.rotation.y) * 0.02;
+
+            renderer.render(scene, camera);
+        }
+
+        // ==================== 滚动动画 ====================
+        function handleScroll() {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.top < window.innerHeight * 0.85) {
+                    el.classList.add('visible');
+                }
+            });
+
+            // 导航栏效果
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 100) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+
+            // 滚动进度条
+            const scrollProgress = document.getElementById('scrollProgress');
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = (scrollTop / docHeight) * 100;
+            scrollProgress.style.width = scrollPercent + '%';
+
+            // 返回顶部按钮
+            const backToTop = document.getElementById('backToTop');
+            if (scrollTop > 500) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 按钮波纹效果
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = e.clientX - rect.left - size/2 + 'px';
+                ripple.style.top = e.clientY - rect.top - size/2 + 'px';
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+
+        // ==================== 数字动画 ====================
+        function animateNumbers() {
+            const numbers = document.querySelectorAll('.stat-number');
+            numbers.forEach(num => {
+                const target = parseInt(num.getAttribute('data-target'));
+                const duration = 2500;
+                const start = performance.now();
+
+                function update(currentTime) {
+                    const elapsed = currentTime - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easeOut = 1 - Math.pow(1 - progress, 4);
+                    num.textContent = Math.floor(target * easeOut).toLocaleString();
+                    if (progress < 1) requestAnimationFrame(update);
+                }
+                requestAnimationFrame(update);
+            });
+        }
+
+        // ==================== 模态框详细内容 ====================
+        const modalData = {
+            ml: {
+                icon: '🧠',
+                title: '机器学习',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 什么是机器学习？</h4>
+                        <p>机器学习（Machine Learning）是人工智能的核心分支，它让计算机能够从数据中自动学习和改进，而无需显式编程。通过算法分析数据模式，机器可以做出预测、分类和决策。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心类型</h4>
+                        <ul>
+                            <li><strong>监督学习</strong>：使用标注数据训练，如垃圾邮件识别、房价预测</li>
+                            <li><strong>无监督学习</strong>：发现数据隐藏模式，如客户分群、异常检测</li>
+                            <li><strong>强化学习</strong>：通过试错学习最优策略，如游戏AI、机器人控制</li>
+                            <li><strong>深度学习</strong>：使用多层神经网络处理复杂数据</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 应用实例</h4>
+                        <div class="modal-example">
+                            <p><code>推荐系统</code> - 抖音、Netflix 根据你的行为推荐内容</p>
+                            <p><code>语音助手</code> - Siri、小爱同学理解你的语音指令</p>
+                            <p><code>医疗诊断</code> - AI辅助医生识别X光片中的病变</p>
+                            <p><code>自动驾驶</code> - Tesla、Waymo 通过学习驾驶数据实现自动导航</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 常用技术</h4>
+                        <div>
+                            <span class="modal-tag">神经网络</span>
+                            <span class="modal-tag">决策树</span>
+                            <span class="modal-tag">随机森林</span>
+                            <span class="modal-tag">SVM</span>
+                            <span class="modal-tag">K-means</span>
+                            <span class="modal-tag">XGBoost</span>
+                            <span class="modal-tag">PyTorch</span>
+                            <span class="modal-tag">TensorFlow</span>
+                        </div>
+                    </div>
+                `
+            },
+            nlp: {
+                icon: '💬',
+                title: '自然语言处理',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 什么是自然语言处理？</h4>
+                        <p>自然语言处理（NLP）是AI与人类语言交互的桥梁。它让计算机能够理解、解释和生成人类语言，实现人机之间自然流畅的沟通。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心技术</h4>
+                        <ul>
+                            <li><strong>文本分类</strong>：情感分析、垃圾过滤、新闻分类</li>
+                            <li><strong>命名实体识别</strong>：提取文本中的人名、地名、机构名</li>
+                            <li><strong>机器翻译</strong>：Google翻译、DeepL 实现语言互译</li>
+                            <li><strong>文本生成</strong>：ChatGPT、Claude 生成高质量文本</li>
+                            <li><strong>问答系统</strong>：智能客服、知识问答机器人</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 应用实例</h4>
+                        <div class="modal-example">
+                            <p><code>ChatGPT/Claude</code> - 大语言模型，能理解和生成自然语言</p>
+                            <p><code>智能客服</code> - 24小时自动回答用户问题</p>
+                            <p><code>语音转文字</code> - 讯飞听见、飞书妙记</p>
+                            <p><code>AI写作</code> - 自动撰写文章、报告、邮件</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 发展历程</h4>
+                        <div>
+                            <span class="modal-tag">规则方法</span>
+                            <span class="modal-tag">统计方法</span>
+                            <span class="modal-tag">Word2Vec</span>
+                            <span class="modal-tag">Transformer</span>
+                            <span class="modal-tag">BERT</span>
+                            <span class="modal-tag">GPT系列</span>
+                            <span class="modal-tag">大语言模型</span>
+                        </div>
+                    </div>
+                `
+            },
+            cv: {
+                icon: '👁️',
+                title: '计算机视觉',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 什么是计算机视觉？</h4>
+                        <p>计算机视觉（CV）赋予机器"看"的能力。它让计算机能够从图像和视频中提取信息、理解视觉内容，并做出相应的反应和决策。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心技术</h4>
+                        <ul>
+                            <li><strong>图像分类</strong>：识别图片中的主要对象</li>
+                            <li><strong>目标检测</strong>：定位并识别图片中的多个物体</li>
+                            <li><strong>语义分割</strong>：对图像每个像素进行分类</li>
+                            <li><strong>人脸识别</strong>：身份验证、表情分析</li>
+                            <li><strong>图像生成</strong>：Stable Diffusion、DALL-E 生成图像</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 应用实例</h4>
+                        <div class="modal-example">
+                            <p><code>自动驾驶</code> - 识别道路、行人、交通标志</p>
+                            <p><code>人脸识别</code> - 手机解锁、支付验证、安防监控</p>
+                            <p><code>AI绘画</code> - Midjourney、DALL-E 根据文字生成图像</p>
+                            <p><code>医学影像</code> - AI辅助诊断CT、MRI扫描结果</p>
+                            <p><code>AR/VR</code> - 增强现实、虚拟现实的视觉理解</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 常用模型</h4>
+                        <div>
+                            <span class="modal-tag">CNN</span>
+                            <span class="modal-tag">ResNet</span>
+                            <span class="modal-tag">YOLO</span>
+                            <span class="modal-tag">U-Net</span>
+                            <span class="modal-tag">ViT</span>
+                            <span class="modal-tag">Stable Diffusion</span>
+                            <span class="modal-tag">SAM</span>
+                        </div>
+                    </div>
+                `
+            },
+            medical: {
+                icon: '🏥',
+                title: '医疗健康',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 AI在医疗领域的应用</h4>
+                        <p>人工智能正在彻底改变医疗行业，从疾病诊断到药物研发，AI技术让医疗服务更精准、更高效、更普及。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心应用</h4>
+                        <ul>
+                            <li><strong>医学影像诊断</strong>：AI分析CT、MRI、X光片，辅助医生发现病变</li>
+                            <li><strong>药物研发</strong>：加速新药发现过程，降低研发成本</li>
+                            <li><strong>基因组学</strong>：分析基因数据，实现精准医疗</li>
+                            <li><strong>手术机器人</strong>：达芬奇手术系统，提高手术精度</li>
+                            <li><strong>健康管理</strong>：可穿戴设备监测，预警疾病风险</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 实际案例</h4>
+                        <div class="modal-example">
+                            <p><code>肺结节检测</code> - AI检测CT影像中的早期肺癌，准确率超95%</p>
+                            <p><code>糖尿病视网膜病变</code> - Google AI通过眼底照片诊断糖网病</p>
+                            <p><code>AlphaFold</code> - DeepMind预测蛋白质结构，加速药物研发</p>
+                            <p><code>智能问诊</code> - AI辅助分诊，提高医院效率</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 未来趋势</h4>
+                        <div>
+                            <span class="modal-tag">精准医疗</span>
+                            <span class="modal-tag">远程医疗</span>
+                            <span class="modal-tag">AI制药</span>
+                            <span class="modal-tag">数字疗法</span>
+                            <span class="modal-tag">医疗大模型</span>
+                        </div>
+                    </div>
+                `
+            },
+            auto: {
+                icon: '🚗',
+                title: '自动驾驶',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 什么是自动驾驶？</h4>
+                        <p>自动驾驶是AI在交通领域最重要的应用之一。通过感知、决策、控制三大核心模块，让车辆能够在各种路况下安全行驶。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 自动驾驶等级</h4>
+                        <ul>
+                            <li><strong>L0-L1</strong>：辅助驾驶（定速巡航、车道保持）</li>
+                            <li><strong>L2</strong>：部分自动（特斯拉Autopilot、小鹏NGP）</li>
+                            <li><strong>L3</strong>：有条件自动（奔驰Drive Pilot）</li>
+                            <li><strong>L4</strong>：高度自动（Waymo无人出租车）</li>
+                            <li><strong>L5</strong>：完全自动（全场景无人驾驶）</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 核心技术</h4>
+                        <div class="modal-example">
+                            <p><code>激光雷达</code> - 3D点云感知，精确测距</p>
+                            <p><code>视觉AI</code> - 摄像头图像识别，成本更低</p>
+                            <p><code>高精地图</code> - 厘米级定位，提前规划路线</p>
+                            <p><code>V2X</code> - 车路协同，与基础设施通信</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 主要玩家</h4>
+                        <div>
+                            <span class="modal-tag">Waymo</span>
+                            <span class="modal-tag">Tesla</span>
+                            <span class="modal-tag">百度Apollo</span>
+                            <span class="modal-tag">小鹏</span>
+                            <span class="modal-tag">蔚来</span>
+                            <span class="modal-tag">Mobileye</span>
+                        </div>
+                    </div>
+                `
+            },
+            creative: {
+                icon: '🎨',
+                title: '创意生成',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 AI创意革命</h4>
+                        <p>AIGC（AI Generated Content）正在掀起创意产业的革命。从文字到图像、音乐、视频，AI成为人类创意的强力助手。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 应用领域</h4>
+                        <ul>
+                            <li><strong>AI绘画</strong>：Midjourney、Stable Diffusion、DALL-E</li>
+                            <li><strong>AI音乐</strong>：Suno、Udio生成原创歌曲</li>
+                            <li><strong>AI视频</strong>：Sora、Runway、Pika生成视频</li>
+                            <li><strong>AI写作</strong>：自动撰写文案、剧本、小说</li>
+                            <li><strong>AI设计</strong>：自动生成Logo、海报、UI界面</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 热门工具</h4>
+                        <div class="modal-example">
+                            <p><code>Midjourney</code> - 最受欢迎的AI绘画工具</p>
+                            <p><code>ChatGPT</code> - 强大的AI写作助手</p>
+                            <p><code>Sora</code> - OpenAI的视频生成模型</p>
+                            <p><code>Suno</code> - AI音乐创作平台</p>
+                            <p><code>Canva AI</code> - 在线设计工具集成AI</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 对创意产业的影响</h4>
+                        <div>
+                            <span class="modal-tag">降低门槛</span>
+                            <span class="modal-tag">提高效率</span>
+                            <span class="modal-tag">激发灵感</span>
+                            <span class="modal-tag">人机协作</span>
+                            <span class="modal-tag">版权争议</span>
+                        </div>
+                    </div>
+                `
+            },
+            manufacture: {
+                icon: '💼',
+                title: '智能制造',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 工业4.0与AI</h4>
+                        <p>智能制造是工业4.0的核心，AI技术让工厂实现自动化、智能化、柔性化生产，大幅提升效率和质量。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心应用</h4>
+                        <ul>
+                            <li><strong>智能质检</strong>：机器视觉检测产品缺陷，准确率超人工</li>
+                            <li><strong>预测性维护</strong>：提前预警设备故障，减少停机损失</li>
+                            <li><strong>供应链优化</strong>：AI预测需求，优化库存和物流</li>
+                            <li><strong>工艺优化</strong>：AI参数调优，提高良品率</li>
+                            <li><strong>数字孪生</strong>：虚拟仿真，优化生产流程</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 实际效果</h4>
+                        <div class="modal-example">
+                            <p><code>缺陷检测</code> - AI检测微小缺陷，准确率达99.9%</p>
+                            <p><code>能耗优化</code> - AI控制能耗，节能15-30%</p>
+                            <p><code>排产优化</code> - AI智能排产，效率提升20%</p>
+                            <p><code>库存管理</code> - AI预测需求，库存周转提升40%</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 未来方向</h4>
+                        <div>
+                            <span class="modal-tag">无人工厂</span>
+                            <span class="modal-tag">柔性制造</span>
+                            <span class="modal-tag">工业互联网</span>
+                            <span class="modal-tag">边缘AI</span>
+                            <span class="modal-tag">协作机器人</span>
+                        </div>
+                    </div>
+                `
+            },
+            education: {
+                icon: '🎓',
+                title: '智慧教育',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 AI重塑教育</h4>
+                        <p>AI技术正在改变传统教育模式，实现个性化学习、智能辅导、自动化评估，让教育更公平、更高效。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心应用</h4>
+                        <ul>
+                            <li><strong>个性化学习</strong>：根据学生水平自动调整学习路径</li>
+                            <li><strong>AI教师</strong>：智能答疑、作业批改、学情分析</li>
+                            <li><strong>虚拟实验室</strong>：VR/AR模拟实验，安全又直观</li>
+                            <li><strong>智能评测</strong>：AI自动评分，分析学习弱点</li>
+                            <li><strong>教育内容生成</strong>：AI自动生成习题、课件</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 代表产品</h4>
+                        <div class="modal-example">
+                            <p><code>学而思AI</code> - 个性化学习路径推荐</p>
+                            <p><code>猿辅导</code> - AI智能批改、学情分析</p>
+                            <p><code>Khan Academy</code> - AI家教Khanmigo</p>
+                            <p><code>Duolingo</code> - AI语言学习助手</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 发展趋势</h4>
+                        <div>
+                            <span class="modal-tag">AI家教</span>
+                            <span class="modal-tag">自适应学习</span>
+                            <span class="modal-tag">虚拟课堂</span>
+                            <span class="modal-tag">终身学习</span>
+                            <span class="modal-tag">教育公平</span>
+                        </div>
+                    </div>
+                `
+            },
+            security: {
+                icon: '🔐',
+                title: '网络安全',
+                content: `
+                    <div class="modal-section">
+                        <h4>📖 AI赋能网络安全</h4>
+                        <p>随着网络威胁日益复杂，AI成为网络安全的重要防线。通过智能检测、自动响应，AI让网络防御更主动、更高效。</p>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🔧 核心应用</h4>
+                        <ul>
+                            <li><strong>威胁检测</strong>：AI分析流量，识别异常行为和攻击</li>
+                            <li><strong>恶意软件分析</strong>：AI识别新型病毒和木马</li>
+                            <li><strong>欺诈检测</strong>：金融交易实时监控，防范诈骗</li>
+                            <li><strong>身份认证</strong>：生物识别、行为分析增强安全</li>
+                            <li><strong>安全运维</strong>：AI自动化响应，缩短处置时间</li>
+                        </ul>
+                    </div>
+                    <div class="modal-section">
+                        <h4>🎯 应用场景</h4>
+                        <div class="modal-example">
+                            <p><code>入侵检测</code> - AI实时监控网络流量，秒级发现攻击</p>
+                            <p><code>钓鱼邮件</code> - AI识别钓鱼邮件，准确率超99%</p>
+                            <p><code>风控系统</code> - 银行AI风控，实时识别欺诈交易</p>
+                            <p><code>漏洞扫描</code> - AI自动发现系统安全漏洞</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <h4>💡 未来挑战</h4>
+                        <div>
+                            <span class="modal-tag">AI对抗</span>
+                            <span class="modal-tag">深度伪造</span>
+                            <span class="modal-tag">自动化攻击</span>
+                            <span class="modal-tag">隐私保护</span>
+                            <span class="modal-tag">零信任安全</span>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        function openModal(type) {
+            const data = modalData[type];
+            if (!data) return;
+
+            document.getElementById('modalIcon').textContent = data.icon;
+            document.getElementById('modalTitleText').textContent = data.title;
+            document.getElementById('modalBody').innerHTML = data.content;
+
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
+
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // ==================== DeepSeek AI 对话功能 ====================
+        let apiKey = localStorage.getItem('deepseek_api_key') || '';
+        let chatHistory = [];
+        const API_URL = 'https://api.deepseek.com/chat/completions';
+
+        function initApiSettings() {
+            const input = document.getElementById('apiKeyInput');
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (apiKey) {
+                input.value = apiKey;
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+                showApiStatus('success', '✓ API Key 已保存，可以开始对话了！');
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            apiKey = input.value.trim();
+
+            if (!apiKey) {
+                showApiStatus('error', '请输入有效的 API Key');
+                return;
+            }
+
+            localStorage.setItem('deepseek_api_key', apiKey);
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            showApiStatus('success', '✓ API Key 保存成功！现在可以和 AI 对话了');
+            testApiConnection();
+        }
+
+        async function testApiConnection() {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [{ role: 'user', content: '你好' }],
+                        max_tokens: 10
+                    })
+                });
+
+                if (response.ok) {
+                    showApiStatus('success', '✓ API 连接测试成功！准备就绪');
+                } else {
+                    const error = await response.json();
+                    showApiStatus('error', `连接失败：${error.error?.message || '请检查 API Key'}`);
+                }
+            } catch (e) {
+                showApiStatus('error', '网络错误，请检查网络连接');
+            }
+        }
+
+        function showApiStatus(type, message) {
+            const status = document.getElementById('apiStatus');
+            status.className = `api-status ${type}`;
+            status.textContent = message;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const container = document.getElementById('chatContainer');
+            const message = input.value.trim();
+
+            if (!message) return;
+            if (!apiKey) {
+                showApiStatus('error', '请先设置 API Key');
+                return;
+            }
+
+            addMessageToChat('user', message);
+            input.value = '';
+            chatHistory.push({ role: 'user', content: message });
+
+            const typingId = addTypingIndicator();
+            input.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [
+                            { role: 'system', content: '你是 NeuralVerse AI 助手，一个友好、专业的人工智能专家。请用中文回答问题，回答要简洁但有深度。' },
+                            ...chatHistory.slice(-10)
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 1000,
+                        stream: false
+                    })
+                });
+
+                removeTypingIndicator(typingId);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || '请求失败');
+                }
+
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+
+                addMessageToChat('ai', aiResponse);
+                chatHistory.push({ role: 'assistant', content: aiResponse });
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                addMessageToChat('ai', `抱歉，出错了：${error.message}\n\n请检查你的 API Key 是否正确，或稍后再试。`);
+            }
+
+            input.disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+
+        function addMessageToChat(role, content) {
+            const container = document.getElementById('chatContainer');
+            const avatar = role === 'ai' ? '🤖' : '👤';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}`;
+            messageDiv.innerHTML = `
+                <div class="chat-avatar">${avatar}</div>
+                <div class="chat-bubble">${escapeHtml(content)}</div>
+            `;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const container = document.getElementById('chatContainer');
+            const id = 'typing-' + Date.now();
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message ai';
+            typingDiv.id = id;
+            typingDiv.innerHTML = `
+                <div class="chat-avatar">🤖</div>
+                <div class="chat-bubble">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(typingDiv);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const element = document.getElementById(id);
+            if (element) element.remove();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') sendMessage();
+        }
+
+        // ==================== AI图像生成 ====================
+        function generateImage() {
+            const prompt = document.getElementById('promptInput').value;
+            const canvas = document.getElementById('generatedCanvas');
+            const ctx = canvas.getContext('2d');
+            const spinner = document.getElementById('loadingSpinner');
+            const text = document.getElementById('previewText');
+
+            if (!prompt) {
+                alert('请输入图像描述');
+                return;
+            }
+
+            spinner.style.display = 'block';
+            text.style.display = 'none';
+            canvas.style.display = 'none';
+
+            setTimeout(() => {
+                canvas.width = 650;
+                canvas.height = 420;
+
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#0a0a0f');
+                gradient.addColorStop(0.3, '#1a1a2e');
+                gradient.addColorStop(0.7, '#0f0f1a');
+                gradient.addColorStop(1, '#0a0a0f');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < 250; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    const radius = Math.random() * 3.5;
+                    const colors = ['#00f5ff', '#8b5cf6', '#f72585', '#4ade80', '#fbbf24'];
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                    ctx.globalAlpha = 0.3 + Math.random() * 0.7;
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                for (let i = 0; i < 12; i++) {
+                    ctx.beginPath();
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    const size = 25 + Math.random() * 60;
+
+                    if (Math.random() > 0.5) {
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                    } else {
+                        const sides = 3 + Math.floor(Math.random() * 5);
+                        for (let j = 0; j <= sides; j++) {
+                            const angle = (j / sides) * Math.PI * 2;
+                            const px = x + Math.cos(angle) * size;
+                            const py = y + Math.sin(angle) * size;
+                            if (j === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                    }
+                    ctx.strokeStyle = `rgba(0, 245, 255, ${0.2 + Math.random() * 0.5})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                    ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                    const lineGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                    lineGradient.addColorStop(0, 'rgba(139, 92, 246, 0.7)');
+                    lineGradient.addColorStop(0.5, 'rgba(247, 37, 133, 0.7)');
+                    lineGradient.addColorStop(1, 'rgba(0, 245, 255, 0.7)');
+                    ctx.strokeStyle = lineGradient;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                ctx.font = 'bold 18px Orbitron';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.textAlign = 'center';
+                ctx.fillText(prompt.substring(0, 35), canvas.width / 2, canvas.height - 25);
+
+                spinner.style.display = 'none';
+                canvas.style.display = 'block';
+                canvas.style.animation = 'fadeIn 0.5s ease';
+            }, 2500);
+        }
+
+        // ==================== 初始化 ====================
+        window.onload = function() {
+            initThreeJS();
+            initApiSettings();
+            window.addEventListener('scroll', handleScroll);
+            handleScroll();
+            setTimeout(animateNumbers, 2500);
+        };
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
