@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/record/record",
+    "pages/timeline/timeline",
+    "pages/stats/stats",
+    "pages/calendar/calendar",
+    "pages/profile/profile",
+    "pages/budget/budget",
+    "pages/report/report",
+    "pages/detail/detail"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "MoodCash",
+    "navigationBarBackgroundColor": "#F8F9FC",
+    "backgroundColor": "#F8F9FC"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#9E9EB8",
+    "selectedColor": "#6C63FF",
+    "borderStyle": "white",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/timeline/timeline",
+        "text": "时间轴"
+      },
+      {
+        "pagePath": "pages/stats/stats",
+        "text": "统计"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "permission": {},
+  "usingComponents": {}
+}
